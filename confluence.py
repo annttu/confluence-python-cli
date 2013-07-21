@@ -342,7 +342,7 @@ def Actions(token,xml_server,args,content):
                     page_filename = ''.join(c for c in page_filename if c in valid_chars)
                     with open(page_filename, "w") as page_file:
                         try:
-                            page_file.write(page_content)
+                            page_file.write(page_content.encode("utf-8"))
                             page_file.close()
                             print("Saved page: %s" % page_filename)
                         except IOError:
