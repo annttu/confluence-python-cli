@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# encoding: utf-8
 # Copyright (C) 2013  Remy van Elst
 
 # This program is free software: you can redistribute it and/or modify
@@ -252,6 +253,7 @@ def Parser():
     parser_usersgroups = subparsers.add_parser('listusers', help='List all users')
 
     parser_allpages = subparsers.add_parser('getallpages', help='Save all pages to local files.')
+    parser_allpages.add_argument("-s", "--spacekey", help="Space key", required=False)
 
     parser_addutog = subparsers.add_parser('addusertogroup', help='Add user to a group')
     parser_addutog.add_argument("-G", "--groupname", help="Group name to perform action on.", required=True)
@@ -327,6 +329,8 @@ def Actions(token,xml_server,args,content):
        
         elif args.action == "getallpages":
             all_spaces = ConfluenceSpace(token,xml_server).get_all()
+            if args.spacekey:
+                all_spaces = [i for i in all_spaces if i['key'] == args.spacekey]
             for space in all_spaces:
                 all_pages = ConfluenceSpace(token,xml_server).get_all_pages(space['key'])
                 print("Saving space: %s" % space['name'])
