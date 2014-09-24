@@ -16,6 +16,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys, xmlrpclib, argparse, string
+import getpass, requests
+from datetime import datetime
 
 class ConfluenceSpace(object):
     def __init__(self, token, server):
@@ -45,6 +47,21 @@ class ConfluenceSpace(object):
     def get_all_pages(self,spaceKey):
         self.spacekey = spaceKey
         return self.server.confluence2.getPages(self.token, self.spacekey)
+
+    def export_pdf(self, spaceKey, user, password):
+        self.spacekey = spaceKey
+        url = self.server.pdfexport.exportSpace(self.token, self.spacekey)
+        if url.startswith('http'):
+            filename = "%s-%s.pdf" % (self.spacekey, datetime.now().strftime("%Y-%m-%d_%H:%M"))
+            r = requests.get(url, auth=(user, password))
+            if r.status_code == 200:
+                with open(filename, 'wb') as f:
+                    for chunk in r.iter_content(1024):
+                        f.write(chunk)
+                    return "Saved space %s pdf to file %s" % (self.spacekey, filename)
+            else:
+                return "Failed to fetch pdf for space %s" % self.spacekey
+        return url
 
 class ConfluenceGroup(object):
     def __init__(self,token,server,groupname):
@@ -185,7 +202,7 @@ def Parser():
     parser = argparse.ArgumentParser(description="Confluence wiki API")
     parser.add_argument("-w", "--wikiurl", help="Wiki URL (only FQDN, no / and such)", required=True)
     parser.add_argument("-u", "--username", help="Login Username", required=True)
-    parser.add_argument("-p", "--password", help="Login Password", required=True)
+    parser.add_argument("-p", "--password", help="Login Password", required=False)
     subparsers = parser.add_subparsers(dest="action")
     
     parser_addpage = subparsers.add_parser('addpage', help='Add a page')
@@ -255,6 +272,9 @@ def Parser():
     parser_allpages = subparsers.add_parser('getallpages', help='Save all pages to local files.')
     parser_allpages.add_argument("-s", "--spacekey", help="Space key", required=False)
 
+    parser_allpages = subparsers.add_parser('pdfexport', help='Export all space pages as pdf.')
+    parser_allpages.add_argument("-s", "--spacekey", help="Space key", required=False)
+
     parser_addutog = subparsers.add_parser('addusertogroup', help='Add user to a group')
     parser_addutog.add_argument("-G", "--groupname", help="Group name to perform action on.", required=True)
     parser_addutog.add_argument("-U", "--newusername", help="Username to perform action on.", required=True)
@@ -267,6 +287,8 @@ def Parser():
     parser_listusergroups.add_argument("-U", "--newusername", help="Username to perform action on.", required=True)
     
     args = parser.parse_args()
+    if not args.password:
+        args.password = getpass.getpass()
     return args
 
 def Content(args):
@@ -394,6 +416,9 @@ def Actions(token,xml_server,args,content):
             user_groups = ConfluenceUser(token,xml_server,args.newusername).get_groups()
             for group in user_groups:
                 print(group)
+
+        elif args.action == "pdfexport":
+            print(ConfluenceSpace(token, xml_server).export_pdf(args.spacekey, args.username, args.password))
 
     except xmlrpclib.Fault as err:
         print(("Error: %d: %s") % (err.faultCode, err.faultString))
