@@ -203,6 +203,7 @@ def Parser():
     parser.add_argument("-w", "--wikiurl", help="Wiki URL (only FQDN, no / and such)", required=True)
     parser.add_argument("-u", "--username", help="Login Username", required=True)
     parser.add_argument("-p", "--password", help="Login Password", required=False)
+    parser.add_argument("-k", "--passwordfile", help="file containing login password", required=False)
     subparsers = parser.add_subparsers(dest="action")
     
     parser_addpage = subparsers.add_parser('addpage', help='Add a page')
@@ -232,6 +233,7 @@ def Parser():
     parser_getpage.add_argument("-s", "--spacekey", help="Space Key", required=True)
 
     parser_listspaces = subparsers.add_parser('listspaces', help='List all spaces')
+    parser_listspaces.add_argument("-k", "--keysonly", help="List only space keys", action="store_true", default=False)
 
     parser_addspace = subparsers.add_parser('addspace', help='Add a space')
     parser_addspace.add_argument("-s", "--spacekey", help="Space Key", required=True)
@@ -287,8 +289,12 @@ def Parser():
     parser_listusergroups.add_argument("-U", "--newusername", help="Username to perform action on.", required=True)
     
     args = parser.parse_args()
-    if not args.password:
+    if not args.password and not args.passwordfile:
         args.password = getpass.getpass()
+    elif not args.password and args.passwordfile:
+        f = open(args.passwordfile, 'r')
+        args.password = f.readline().strip()
+        f.close()
     return args
 
 def Content(args):
@@ -346,8 +352,11 @@ def Actions(token,xml_server,args,content):
         elif args.action == "listspaces":
             all_spaces = ConfluenceSpace(token,xml_server).get_all()
             for space in all_spaces:
-                print(("%s, %s, %s") % (
-                 space['key'], space['name'], space['url']))
+                if args.keysonly:
+                    print("%s" % space['key'])
+                else:
+                    print(("%s, %s, %s") % (
+                     space['key'], space['name'], space['url']))
        
         elif args.action == "getallpages":
             all_spaces = ConfluenceSpace(token,xml_server).get_all()
